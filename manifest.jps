@@ -1,0 +1,53 @@
+type: update
+version: '0.1'
+id: zabbixagent
+logo: "https://assets.zabbix.com/img/logo/zabbix_logo_313x82.png"
+description:
+  text: "<span>Zabbix Agent Install</div>"
+  short: Zabbix Agent Installation
+name: Zabbix Agent
+targetNodes:
+  nodeType:
+  - '*'
+  nodeGroup:
+  - '*'
+  env:
+    JELASTIC_PORTS: 10050
+baseUrl: https://raw.githubusercontent.com/gerardalmon/zabbixagent/master
+onInstall: installagent
+onUninstall: uninstallagent
+onBeforeDelete: removefiles
+settings:
+  fields:
+    - type: string
+      name: nodeId
+      inputType: hidden
+    - type: string
+      name: nodeGroup
+      inputType: hidden
+
+actions:
+  installagent:
+    cmd [${targetNodes.nodeGroup}]:
+      - rpm -ivh http://repo.zabbix.com/zabbix/3.0/rhel/7/x86_64/zabbix-release-3.0-1.el7.noarch.rpm
+      - yum install -y zabbix-agent
+      - sed -i "s|^Server\=.*|Server=10.10.1.18|g" /etc/zabbix/zabbix_agentd.conf
+      - sed -i "s|^ServerActive\=.*|ServerActive=10.10.1.18|g" /etc/zabbix/zabbix_agentd.conf
+      - sed -i "s|^Hostname\=.*|#Hostname=Zabbix server|g" /etc/zabbix/zabbix_agentd.conf
+      - sed -i "74 a EnableRemoteCommands=1" /etc/zabbix/zabbix_agentd.conf
+      - sed -i "83 a LogRemoteCommands=1" /etc/zabbix/zabbix_agentd.conf
+      - sed -i "156 a HostnameItem=system.hostname" /etc/zabbix/zabbix_agentd.conf
+      - mkdir /var/lib/zabbix
+      - chown zabbix:zabbix /var/lib/zabbix
+      - wget "${baseUrl}/postgres.tar" -O /var/lib/zabbix/postgres.tar 2>&1
+      - tar xfP /var/lib/zabbix/postgres.tar
+      - systemctl enable zabbix-agent
+      - systemctl start zabbix-agent
+    user: root
+  uninstallagent:
+    cmd [${targetNodes.nodeGroup}]:
+      - systemctl stop zabbix-agent
+      - systemctl disable zabbix-agent
+      - yum remove -y zabbix-agent
+    user: root  
+success: The Zabbix Agent has been Installed
